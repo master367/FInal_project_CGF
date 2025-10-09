@@ -75,6 +75,8 @@ static void lookAt(Vec3 eye, Vec3 center, Vec3 up) {
 
 static GLuint texBrick = 0, texTile = 0, texCeil = 0; static int texSize = 64;
 
+static bool  DISP_ON = true;         
+static float DISP_SCALE = 0.06f;
 static void makeTexture(GLuint& tex, int Wt, int Ht, const std::vector<unsigned char>& rgba) {
     if (!tex) glGenTextures(1, &tex); glBindTexture(GL_TEXTURE_2D, tex);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -146,13 +148,96 @@ static void drawTexturedQuad(Vec3 a, Vec3 b, Vec3 c, Vec3 d, float u0, float v0,
     glEnd();
 }
 
-static void drawWall(Vec3 a, Vec3 b) {
-    Vec3 t = b - a; Vec3 up = v3(0, 1, 0); Vec3 n = norm(cross(up, t));
-    Vec3 p0 = a, p1 = b, p2 = b + v3(0, HGT, 0), p3 = a + v3(0, HGT, 0);
-    glBindTexture(GL_TEXTURE_2D, texBrick);
-    float lenW = len(t);
-    drawTexturedQuad(p0, p1, p2, p3, 0, 0, lenW * 0.8f, HGT * 0.8f);
+static inline float brickHeight(float u, float v)
+{
+    float U = u - std::floor(u);
+    float V = v - std::floor(v);
+
+    int row = (int)(V * 8.0f);
+    float off = (row % 2) ? 0.5f : 0.0f;       
+    float fx = std::fmod(U + off, 1.0f);
+    int col = (int)(fx * 8.0f);
+
+    bool mortarH = (((int)(V * 64.0f)) % 8) == 0;
+    bool mortarV = (((int)((U * 64.0f) + ((row % 2) ? 4 : 0))) % 8) == 0;
+    bool mortar = mortarH || mortarV;
+
+    float base = mortar ? 0.0f : 1.0f;
+
+    float n = hash11(row * 31 + col) * 0.25f;
+
+    float du = std::fmod((U + off) * 8.0f, 1.0f);
+    du = std::min(du, 1.0f - du);
+    float dv = std::fmod(V * 8.0f, 1.0f);
+    dv = std::min(dv, 1.0f - dv);
+    float bevel = std::min(du, dv);               
+    float bevelFactor = 1.0f - 4.0f * std::min(bevel, 0.25f); 
+    float h = base * (0.6f + 0.4f * bevelFactor) + n;
+
+    if (h < 0.0f) h = 0.0f;
+    if (h > 1.0f) h = 1.0f;
+    return h;
 }
+
+static void drawWall(Vec3 a, Vec3 b)
+{
+    Vec3 t = b - a;
+    Vec3 up = v3(0, 1, 0);
+    Vec3 n = norm(cross(up, t));      
+    glBindTexture(GL_TEXTURE_2D, texBrick);
+
+    float lenW = len(t);
+
+    const int SX = 32;   
+    const int SY = 16;   
+
+    const float uMax = lenW * 0.8f;  
+    const float vMax = HGT * 0.8f;
+
+    for (int iy = 0; iy < SY; ++iy)
+    {
+        for (int ix = 0; ix < SX; ++ix)
+        {
+           
+            float tx0 = (float)ix / (float)SX;
+            float tx1 = (float)(ix + 1) / (float)SX;
+            float ty0 = (float)iy / (float)SY;
+            float ty1 = (float)(iy + 1) / (float)SY;
+
+            Vec3 p0 = a + t * tx0 + v3(0, HGT * ty0, 0);
+            Vec3 p1 = a + t * tx1 + v3(0, HGT * ty0, 0);
+            Vec3 p2 = a + t * tx1 + v3(0, HGT * ty1, 0);
+            Vec3 p3 = a + t * tx0 + v3(0, HGT * ty1, 0);
+
+            float u0 = uMax * tx0;
+            float u1 = uMax * tx1;
+            float v0 = vMax * ty0;
+            float v1 = vMax * ty1;
+
+            if (DISP_ON && DISP_SCALE > 0.0f)
+            {
+               
+                float h0 = brickHeight(u0, v0);
+                float h1 = brickHeight(u1, v0);
+                float h2 = brickHeight(u1, v1);
+                float h3 = brickHeight(u0, v1);
+
+                p0 = p0 + n * (h0 * DISP_SCALE);
+                p1 = p1 + n * (h1 * DISP_SCALE);
+                p2 = p2 + n * (h2 * DISP_SCALE);
+                p3 = p3 + n * (h3 * DISP_SCALE);
+            }
+
+            glBegin(GL_QUADS);
+            glTexCoord2f(u0, v0); glVertex3f(p0.x, p0.y, p0.z);
+            glTexCoord2f(u1, v0); glVertex3f(p1.x, p1.y, p1.z);
+            glTexCoord2f(u1, v1); glVertex3f(p2.x, p2.y, p2.z);
+            glTexCoord2f(u0, v1); glVertex3f(p3.x, p3.y, p3.z);
+            glEnd();
+        }
+    }
+}
+
 
 static void renderScene() {
     glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
@@ -202,6 +287,10 @@ static void keycb(GLFWwindow* w, int key, int sc, int action, int mods) {
         if (key == GLFW_KEY_2) { texSize = std::min(256, texSize * 2); regenTextures(); }
         if (key == GLFW_KEY_9) { renderScale = std::min(4, renderScale + 1); }
         if (key == GLFW_KEY_0) { renderScale = std::max(1, renderScale - 1); }
+
+        if (key == GLFW_KEY_P) DISP_ON = !DISP_ON;         
+        if (key == GLFW_KEY_LEFT_BRACKET) { DISP_SCALE = std::max(0.0f, DISP_SCALE - 0.01f); } 
+        if (key == GLFW_KEY_RIGHT_BRACKET) { DISP_SCALE = std::min(0.25f, DISP_SCALE + 0.01f); } 
     }
 }
 static void mousebtn(GLFWwindow* w, int button, int action, int mods) { if (button == GLFW_MOUSE_BUTTON_LEFT) { dragging = (action == GLFW_PRESS) && !autoFly; if (dragging) glfwGetCursorPos(w, &mx, &my); } }
