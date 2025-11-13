@@ -33,7 +33,6 @@ struct Cell { bool visited = false; bool wall[4] = { true,true,true,true }; };
 static std::vector<Cell> grid;
 static inline int idx(int c, int r) { return r * COLS + c; }
 
-// Состояния игры
 enum GameState { MENU, PLAYING };
 static GameState gameState = MENU;
 
@@ -57,7 +56,6 @@ static bool firstMouse = true;
 static Vec3 forward() { return v3(std::sin(yaw) * std::cos(pitch), std::sin(pitch), std::cos(yaw) * std::cos(pitch)); }
 static Vec3 rightv() { Vec3 f = forward(); return v3(f.z, 0, -f.x); }
 
-// Проверка коллизии с стенами
 static bool checkCollision(Vec3 pos) {
     float margin = 0.3f;
     int c = (int)(pos.x / CELL);
@@ -71,10 +69,10 @@ static bool checkCollision(Vec3 pos) {
     float bz = (r + 1) * CELL;
 
     const Cell& cell = grid[idx(c, r)];
-    if (cell.wall[0] && pos.z < tz + margin) return true; // North
-    if (cell.wall[1] && pos.x > rx - margin) return true; // East
-    if (cell.wall[2] && pos.z > bz - margin) return true; // South
-    if (cell.wall[3] && pos.x < lx + margin) return true; // West
+    if (cell.wall[0] && pos.z < tz + margin) return true; 
+    if (cell.wall[1] && pos.x > rx - margin) return true; 
+    if (cell.wall[2] && pos.z > bz - margin) return true; 
+    if (cell.wall[3] && pos.x < lx + margin) return true; 
 
     return false;
 }
@@ -191,7 +189,6 @@ static inline float brickHeight(float u, float v) {
     return h;
 }
 
-// ОПТИМИЗАЦИЯ: уменьшено subdivision с 32x16 до 8x8
 static void drawWall(Vec3 a, Vec3 b) {
     Vec3 t = b - a;
     Vec3 up = v3(0, 1, 0);
@@ -199,8 +196,8 @@ static void drawWall(Vec3 a, Vec3 b) {
     glBindTexture(GL_TEXTURE_2D, texBrick);
     float lenW = len(t);
 
-    const int SX = 8;  // Было 32
-    const int SY = 8;  // Было 16
+    const int SX = 8;  
+    const int SY = 8;  
 
     const float uMax = lenW * 0.8f;
     const float vMax = HGT * 0.8f;
@@ -244,12 +241,11 @@ static void drawWall(Vec3 a, Vec3 b) {
     }
 }
 
-// ОПТИМИЗАЦИЯ: простой frustum culling
 static bool isWallVisible(Vec3 a, Vec3 b, Vec3 camPos, Vec3 camForward) {
     Vec3 wallCenter = (a + b) * 0.5f;
     wallCenter.y = HGT * 0.5f;
     Vec3 toWall = wallCenter - camPos;
-    return dot(norm(toWall), camForward) > -0.3f; // Небольшой запас
+    return dot(norm(toWall), camForward) > -0.3f; 
 }
 
 static void renderScene() {
@@ -271,7 +267,6 @@ static void renderScene() {
     glBindTexture(GL_TEXTURE_2D, texCeil);
     drawTexturedQuad(v3(0, HGT, 0), v3(COLS * CELL, HGT, 0), v3(COLS * CELL, HGT, ROWS * CELL), v3(0, HGT, ROWS * CELL), 0, 0, COLS * 0.4f, ROWS * 0.4f);
 
-    // ОПТИМИЗАЦИЯ: рисуем только видимые стены
     for (int r = 0; r < ROWS; ++r) {
         for (int c = 0; c < COLS; ++c) {
             const Cell& cell = grid[idx(c, r)];
@@ -299,7 +294,6 @@ static void renderScene() {
     glDisable(GL_TEXTURE_2D);
 }
 
-// Мини-карта
 static void drawMinimap() {
     float mapSize = 200.0f;
     float mapX = W - mapSize - 20.0f;
@@ -308,7 +302,6 @@ static void drawMinimap() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Фон карты
     glColor4f(0.1f, 0.1f, 0.1f, 0.8f);
     glBegin(GL_QUADS);
     glVertex2f(mapX, mapY);
@@ -317,7 +310,6 @@ static void drawMinimap() {
     glVertex2f(mapX, mapY + mapSize);
     glEnd();
 
-    // Рамка
     glColor4f(0.9f, 0.9f, 0.9f, 1.0f);
     glBegin(GL_LINE_LOOP);
     glVertex2f(mapX, mapY);
@@ -329,7 +321,6 @@ static void drawMinimap() {
     float cellW = mapSize / COLS;
     float cellH = mapSize / ROWS;
 
-    // Рисуем стены
     glColor4f(0.7f, 0.7f, 0.7f, 1.0f);
     glBegin(GL_LINES);
     for (int r = 0; r < ROWS; ++r) {
@@ -338,19 +329,19 @@ static void drawMinimap() {
             float x = mapX + c * cellW;
             float y = mapY + r * cellH;
 
-            if (cell.wall[0]) { // North
+            if (cell.wall[0]) { 
                 glVertex2f(x, y);
                 glVertex2f(x + cellW, y);
             }
-            if (cell.wall[1]) { // East
+            if (cell.wall[1]) { 
                 glVertex2f(x + cellW, y);
                 glVertex2f(x + cellW, y + cellH);
             }
-            if (cell.wall[2]) { // South
+            if (cell.wall[2]) { 
                 glVertex2f(x, y + cellH);
                 glVertex2f(x + cellW, y + cellH);
             }
-            if (cell.wall[3]) { // West
+            if (cell.wall[3]) { 
                 glVertex2f(x, y);
                 glVertex2f(x, y + cellH);
             }
@@ -358,7 +349,6 @@ static void drawMinimap() {
     }
     glEnd();
 
-    // Позиция игрока
     float px = mapX + (camPos.x / (COLS * CELL)) * mapSize;
     float py = mapY + (camPos.z / (ROWS * CELL)) * mapSize;
 
@@ -368,7 +358,6 @@ static void drawMinimap() {
     glVertex2f(px, py);
     glEnd();
 
-    // Направление взгляда
     float dirLen = 15.0f;
     float dx = std::sin(yaw) * dirLen;
     float dy = std::cos(yaw) * dirLen;
@@ -380,7 +369,6 @@ static void drawMinimap() {
     glDisable(GL_BLEND);
 }
 
-// Простая растровая система шрифтов (5x7 пикселей на символ)
 static const unsigned char font5x7[96][7] = {
     {0x00,0x00,0x00,0x00,0x00,0x00,0x00}, // space
     {0x04,0x04,0x04,0x04,0x00,0x04,0x00}, // !
@@ -479,7 +467,6 @@ static void drawText(float x, float y, const char* text, float scale, float r, f
     }
 }
 
-// Простое меню
 static void drawMenu() {
     glDisable(GL_DEPTH_TEST);
     glMatrixMode(GL_PROJECTION);
@@ -488,7 +475,6 @@ static void drawMenu() {
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    // Фон с градиентом
     glBegin(GL_QUADS);
     glColor3f(0.1f, 0.1f, 0.15f);
     glVertex2f(0, 0);
@@ -498,32 +484,26 @@ static void drawMenu() {
     glVertex2f(0, (float)H);
     glEnd();
 
-    // Заголовок "3D MAZE"
     float titleY = H * 0.15f;
     const char* title = "3D MAZE";
     float titleScale = 8.0f;
-    float titleWidth = 42 * titleScale; // 7 букв * 6 пикселей * scale
+    float titleWidth = 42 * titleScale; 
     float titleX = W * 0.5f - titleWidth * 0.5f;
 
-    // Тень заголовка
     drawText(titleX + 4, titleY + 4, title, titleScale, 0.0f, 0.0f, 0.0f);
-    // Сам заголовок
     drawText(titleX, titleY, title, titleScale, 0.95f, 0.75f, 0.3f);
 
-    // Подзаголовок
     const char* subtitle = "RETRO BRICKS";
     float subScale = 3.0f;
     float subWidth = 72 * subScale;
     float subX = W * 0.5f - subWidth * 0.5f;
     drawText(subX, titleY + 80, subtitle, subScale, 0.7f, 0.7f, 0.7f);
 
-    // Кнопка START
     float btnW = 320.0f;
     float btnH = 70.0f;
     float btnX = W * 0.5f - btnW * 0.5f;
     float btnY = H * 0.45f;
 
-    // Тень кнопки
     glColor3f(0.0f, 0.0f, 0.0f);
     glBegin(GL_QUADS);
     glVertex2f(btnX + 5, btnY + 5);
@@ -532,7 +512,6 @@ static void drawMenu() {
     glVertex2f(btnX + 5, btnY + btnH + 5);
     glEnd();
 
-    // Кнопка
     glColor3f(0.25f, 0.55f, 0.25f);
     glBegin(GL_QUADS);
     glVertex2f(btnX, btnY);
@@ -541,7 +520,6 @@ static void drawMenu() {
     glVertex2f(btnX, btnY + btnH);
     glEnd();
 
-    // Рамка кнопки
     glColor3f(0.9f, 0.95f, 0.9f);
     glLineWidth(4.0f);
     glBegin(GL_LINE_LOOP);
@@ -551,14 +529,12 @@ static void drawMenu() {
     glVertex2f(btnX, btnY + btnH);
     glEnd();
 
-    // Надпись START
     const char* startText = "PRESS SPACE TO START";
     float startScale = 3.0f;
     float startWidth = 120 * startScale;
     float startX = W * 0.5f - startWidth * 0.5f;
     drawText(startX, btnY + 22, startText, startScale, 1.0f, 1.0f, 1.0f);
 
-    // Инструкции
     float instrY = H * 0.60f;
     float lineHeight = 28.0f;
     float instrScale = 2.2f;
@@ -720,7 +696,6 @@ int main() {
         last = now;
 
         if (gameState == PLAYING) {
-            // FPS движение
             float spd = 3.2f;
             Vec3 f = forward();
             f.y = 0;
@@ -735,7 +710,6 @@ int main() {
             if (keys[GLFW_KEY_A]) newPos = newPos - r * (spd * dt);
             if (keys[GLFW_KEY_D]) newPos = newPos + r * (spd * dt);
 
-            // Проверка коллизии
             if (!checkCollision(newPos)) {
                 camPos = newPos;
             }
@@ -756,7 +730,6 @@ int main() {
             glViewport(vx, vy, vw, vh);
             renderScene();
 
-            // Vignette эффект (затемнение по краям)
             glDisable(GL_DEPTH_TEST);
             glMatrixMode(GL_PROJECTION);
             glLoadIdentity();
@@ -767,10 +740,8 @@ int main() {
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-            // Рисуем 4 прямоугольника по краям вместо веера
             float vignetteSize = std::min(vw, vh) * 0.3f;
 
-            // Верхняя полоса
             glBegin(GL_QUADS);
             glColor4f(0, 0, 0, 0.5f);
             glVertex2f((float)vx, (float)vy);
@@ -780,7 +751,6 @@ int main() {
             glVertex2f((float)vx, (float)(vy + vignetteSize));
             glEnd();
 
-            // Нижняя полоса
             glBegin(GL_QUADS);
             glColor4f(0, 0, 0, 0.0f);
             glVertex2f((float)vx, (float)(vy + vh - vignetteSize));
@@ -790,7 +760,6 @@ int main() {
             glVertex2f((float)vx, (float)(vy + vh));
             glEnd();
 
-            // Левая полоса
             glBegin(GL_QUADS);
             glColor4f(0, 0, 0, 0.5f);
             glVertex2f((float)vx, (float)vy);
@@ -801,7 +770,6 @@ int main() {
             glVertex2f((float)vx, (float)(vy + vh));
             glEnd();
 
-            // Правая полоса
             glBegin(GL_QUADS);
             glColor4f(0, 0, 0, 0.0f);
             glVertex2f((float)(vx + vw - vignetteSize), (float)vy);
@@ -814,7 +782,6 @@ int main() {
 
             glDisable(GL_BLEND);
 
-            // Мини-карта
             glViewport(0, 0, W, H);
             drawMinimap();
         }
